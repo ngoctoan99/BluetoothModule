@@ -1,44 +1,43 @@
 package com.example.bluetoothchat;
 
-import static android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
+import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ListView;
-import android.widget.TextView;
-
+import com.example.bluetoothchat.databinding.ActivityMainBinding;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
-import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
 
 public class MainActivity extends AppCompatActivity {
-
-    Button listen,send, listDevices;
-    ListView listView;
-    TextView msg_box,status;
-    EditText writeMsg;
-
     BluetoothAdapter bluetoothAdapter;
 
     BluetoothDevice[] btArray;
@@ -52,121 +51,163 @@ public class MainActivity extends AppCompatActivity {
     static final int STATE_MESSAGE_RECEIVED=5;
 
     int REQUEST_ENABLE_BLUETOOTH=1;
-    static final int  PERMISSION_CODE = 101;
 
     private static final String APP_NAME = "BTChat";
     private static final UUID MY_UUID=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+    private ArrayList<BluetoothDevice> devicesAvailable ;
+    private ArrayList<BluetoothDevice> discoveryDevices ;
+    private ActivityMainBinding binding ;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-//        checkPermissionApp();
-        findViewByIdes();
+        binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        if (ContextCompat.checkSelfPermission(this, ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions((Activity) this,
+                    new String[]{ACCESS_COARSE_LOCATION},
+                    1);
+        }
+
+
+        devicesAvailable = new ArrayList<>();
+        discoveryDevices = new ArrayList<>();
+        listeningDevice();
         bluetoothAdapter=BluetoothAdapter.getDefaultAdapter();
         if(!bluetoothAdapter.isEnabled())
         {
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableIntent,REQUEST_ENABLE_BLUETOOTH);
         }
+
+        if (bluetoothAdapter.isDiscovering()) {
+            bluetoothAdapter.cancelDiscovery();
+        }
+        bluetoothAdapter.startDiscovery();
         implementListeners();
     }
 
+    @SuppressLint("MissingPermission")
     private void implementListeners() {
 
-        listDevices.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Set<BluetoothDevice> bt=bluetoothAdapter.getBondedDevices();
-                String[] strings=new String[bt.size()];
-                btArray=new BluetoothDevice[bt.size()];
-                int index=0;
-
-                if( bt.size()>0)
+        binding.listDevices.setOnClickListener(view -> {
+            devicesAvailable.clear();
+            @SuppressLint("MissingPermission")
+            Intent discoverableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+            startActivity(discoverableIntent);
+            Set<BluetoothDevice> bt =bluetoothAdapter.getBondedDevices();
+            devicesAvailable.addAll(bt);
+            devicesAvailable.addAll(discoveryDevices);
+            String[] strings=new String[devicesAvailable.size()];
+            btArray=new BluetoothDevice[devicesAvailable.size()];
+            int index=0;
+            if( bt.size()>0)
+            {
+                for(BluetoothDevice device : devicesAvailable)
                 {
-                    for(BluetoothDevice device : bt)
-                    {
-                        btArray[index]= device;
-                        strings[index]=device.getName();
-                        index++;
-                    }
-                    ArrayAdapter<String> arrayAdapter=new ArrayAdapter<String>(getApplicationContext(),android.R.layout.simple_list_item_1,strings);
-                    listView.setAdapter(arrayAdapter);
+                    btArray[index]= device;
+                    strings[index]=getNameFor(device);
+                    index++;
+                }
+                ArrayAdapter<String> arrayAdapter=new ArrayAdapter<>(getApplicationContext(),android.R.layout.simple_list_item_1,strings);
+                binding.listview.setAdapter(arrayAdapter);
+
+            }
+        });
+
+        binding.btnListen.setOnClickListener(view -> {
+            bluetoothAdapter.cancelDiscovery();
+            ServerClass serverClass=new ServerClass();
+            serverClass.start();
+        });
+
+        binding.listview.setOnItemClickListener((adapterView, view, i, l) -> {
+            bluetoothAdapter.cancelDiscovery();
+            ClientClass clientClass=new ClientClass(btArray[i]);
+            clientClass.start();
+
+            binding.tvStatus.setText(getResources().getString(R.string.connecting));
+        });
+
+        binding.btnSend.setOnClickListener(view -> {
+            String string= String.valueOf(binding.edtMessage.getText());
+
+            User user = new User("Toan","Test");
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream out = null;
+            try {
+                out = new ObjectOutputStream(bos);
+                out.writeObject(user);
+                out.flush();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } finally {
+                try {
+                    bos.close();
+                } catch (IOException ignored) {
+
                 }
             }
-        });
+            Log.d("TTT",string+ " /"+ Arrays.toString(string.getBytes()));
+            sendReceive.write(bos.toByteArray());
 
-        listen.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                ServerClass serverClass=new ServerClass();
-                serverClass.start();
-            }
-        });
-
-        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
-                ClientClass clientClass=new ClientClass(btArray[i]);
-                clientClass.start();
-
-                status.setText("Connecting");
-            }
-        });
-
-        send.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String string= String.valueOf(writeMsg.getText());
-                Log.d("TTT",string+ " /"+string.getBytes());
-                sendReceive.write(string.getBytes());
-
-            }
         });
     }
 
     Handler handler=new Handler(new Handler.Callback() {
         @Override
-        public boolean handleMessage(Message msg) {
+        public boolean handleMessage(@NonNull Message msg) {
 
             switch (msg.what)
             {
                 case STATE_LISTENING:
-                    status.setText("Listening");
+                    binding.tvStatus.setText(getResources().getString(R.string.listening));
                     break;
                 case STATE_CONNECTING:
-                    status.setText("Connecting");
+                    binding.tvStatus.setText(getResources().getString(R.string.connecting));
                     break;
                 case STATE_CONNECTED:
-                    status.setText("Connected");
+                    binding.tvStatus.setText(getResources().getString(R.string.connected));
                     break;
                 case STATE_CONNECTION_FAILED:
-                    status.setText("Connection Failed");
+                    binding.tvStatus.setText(getResources().getString(R.string.connection_failed));
                     break;
                 case STATE_MESSAGE_RECEIVED:
                     byte[] readBuff= (byte[]) msg.obj;
-                    String tempMsg=new String(readBuff,0,msg.arg1);
-                    msg_box.setText(tempMsg);
+//                    String tempMsg=new String(readBuff,0,msg.arg1);
+                    ByteArrayInputStream bis = new ByteArrayInputStream(readBuff);
+                    ObjectInput in = null;
+                    User user;
+                    try {
+                        in = new ObjectInputStream(bis);
+                        user = (User) in.readObject();
+                    } catch (IOException | ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    } finally {
+                        try {
+                            if (in != null) {
+                                in.close();
+                            }
+                        } catch (IOException ex) {
+                            // ignore close exception
+                        }
+                    }
+//                    msg_box.setText(tempMsg);
+                    binding.tvMessage.setText(user.getName());
                     break;
             }
             return true;
         }
     });
 
-    private void findViewByIdes() {
-        listen=(Button) findViewById(R.id.listen);
-        send=(Button) findViewById(R.id.send);
-        listView=(ListView) findViewById(R.id.listview);
-        msg_box =(TextView) findViewById(R.id.msg);
-        status=(TextView) findViewById(R.id.status);
-        writeMsg=(EditText) findViewById(R.id.writemsg);
-        listDevices=(Button) findViewById(R.id.listDevices);
-    }
 
     private class ServerClass extends Thread
     {
         private BluetoothServerSocket serverSocket;
 
+        @SuppressLint("MissingPermission")
         public ServerClass(){
             try {
                 serverSocket=bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME,MY_UUID);
@@ -192,6 +233,10 @@ public class MainActivity extends AppCompatActivity {
                     Message message=Message.obtain();
                     message.what=STATE_CONNECTION_FAILED;
                     handler.sendMessage(message);
+                    if(!bluetoothAdapter.isEnabled()){
+                        cancel();
+                        break;
+                    }
                 }
 
                 if(socket!=null)
@@ -207,6 +252,13 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+        public void cancel() {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                Log.e("TTT", "Could not close the server socket", e);
+            }
+        }
     }
 
     private class ClientClass extends Thread
@@ -214,6 +266,7 @@ public class MainActivity extends AppCompatActivity {
         private BluetoothDevice device;
         private BluetoothSocket socket;
 
+        @SuppressLint("MissingPermission")
         public ClientClass (BluetoothDevice device1)
         {
             device=device1;
@@ -225,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        @SuppressLint("MissingPermission")
         public void run()
         {
             try {
@@ -241,6 +295,14 @@ public class MainActivity extends AppCompatActivity {
                 Message message=Message.obtain();
                 message.what=STATE_CONNECTION_FAILED;
                 handler.sendMessage(message);
+            }
+        }
+
+        public void cancel() {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                Log.e("TTT", "Could not close the connect socket", e);
             }
         }
     }
@@ -286,44 +348,50 @@ public class MainActivity extends AppCompatActivity {
 
         public void write(byte[] bytes)
         {
-            Log.d("TTT","write : " + bytes.length);
             try {
                 outputStream.write(bytes);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-   private void checkPermissionApp(){
-        //Q
-       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-           if (ContextCompat.checkSelfPermission(this,
-                   ACCESS_BACKGROUND_LOCATION)
-                   != PackageManager.PERMISSION_GRANTED) {
-               ActivityCompat.requestPermissions(
-                       MainActivity.this,
-                       new String[]{ACCESS_BACKGROUND_LOCATION},
-                       PERMISSION_CODE) ;
-           }
-       }
-   }
-    @Override public void onRequestPermissionsResult(int requestCode,
-                                                     String permissions[], int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PERMISSION_CODE: {
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! do the
-                    // calendar task you need to do.
-                } else {
-                    checkPermissionApp();
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                }
-                return;
+        public void cancel() {
+            try {
+                bluetoothSocket.close();
+            } catch (IOException e) {
+                Log.e("TTT", "Could not close the connect socket", e);
             }
         }
+    }
+    public final BroadcastReceiver receiver = new  BroadcastReceiver(){
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                if(!discoveryDevices.contains(device)){
+                    discoveryDevices.add(device);
+                }
+
+
+                Log.e("TTT", "ACTION_FOUND");
+
+            }
+        }
+    };
+
+    private void listeningDevice(){
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        filter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
+        registerReceiver(receiver, filter);
+    }
+    @SuppressLint("MissingPermission")
+    private String getNameFor(BluetoothDevice device) {
+        return ((device.getName() == null || device.getName().equals("null")) ? "Unknown" : device.getName());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(receiver);
     }
 }

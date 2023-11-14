@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/listen"
+        android:id="@+id/btnListen"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="14dp"
         android:layout_marginTop="19dp"
-        android:text="Listen"
+        android:text="@string/listen"
         android:layout_alignParentTop="true"
         android:layout_alignParentStart="true" />
 
@@ -21,40 +20,42 @@
         android:layout_width="match_parent"
         android:layout_height="200dp"
         android:background="@android:color/darker_gray"
-        android:layout_below="@+id/listen"
+        android:layout_below="@+id/btnListen"
         android:layout_alignParentStart="true"
         android:layout_marginTop="31dp" />
 
     <TextView
-        android:id="@+id/msg"
+        android:id="@+id/tvMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@+id/listview"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="48dp"
-        android:hint="Message"
+        android:hint="@string/message"
         android:textAlignment="center"
         android:textColor="?android:attr/textColorLink"
         android:textSize="30sp"
         android:textStyle="italic" />
 
     <EditText
-        android:id="@+id/writemsg"
+        android:autofillHints="name"
+        android:id="@+id/edtMessage"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
         android:layout_marginBottom="14dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:layout_alignParentBottom="true"
-        android:layout_alignStart="@+id/listen" />
+        android:layout_alignStart="@+id/btnListen"
+        android:hint="@string/enter_message" />
 
     <Button
-        android:id="@+id/send"
+        android:id="@+id/btnSend"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Send"
-        android:layout_alignTop="@+id/writemsg"
-        android:layout_alignEnd="@+id/status" />
+        android:text="@string/send"
+        android:layout_alignTop="@+id/edtMessage"
+        android:layout_alignEnd="@+id/tvStatus" />
 
     <Button
         android:id="@+id/listDevices"
@@ -62,17 +63,17 @@
         android:layout_height="wrap_content"
         android:layout_above="@+id/listview"
         android:layout_centerHorizontal="true"
-        android:text="List Devices" />
+        android:text="@string/list_devices" />
 
     <TextView
-        android:id="@+id/status"
+        android:id="@+id/tvStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBaseline="@+id/listDevices"
         android:layout_alignBottom="@+id/listDevices"
         android:layout_alignParentEnd="true"
         android:layout_marginEnd="14dp"
-        android:text="Status"
+        android:text="@string/status"
         android:textSize="14sp"
         android:textStyle="italic" />
 

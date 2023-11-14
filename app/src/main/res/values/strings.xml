@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">BluetoothChat</string>
+    <string name="status">Status</string>
+    <string name="list_devices">List Devices</string>
+    <string name="send">Send</string>
+    <string name="message">Message</string>
+    <string name="listen">Listen</string>
+    <string name="connecting">Connecting</string>
+    <string name="listening">Listening</string>
+    <string name="connected">Connected</string>
+    <string name="enter_message">Enter message</string>
+    <string name="connection_failed">Connection Failed</string>
 </resources>
