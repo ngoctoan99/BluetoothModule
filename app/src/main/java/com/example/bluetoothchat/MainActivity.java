@@ -1,7 +1,11 @@
 package com.example.bluetoothchat;
 
+import static android.Manifest.permission.ACCESS_BACKGROUND_LOCATION;
 import static android.Manifest.permission.ACCESS_COARSE_LOCATION;
+import static android.Manifest.permission.ACCESS_FINE_LOCATION;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -18,6 +22,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -50,25 +55,27 @@ public class MainActivity extends AppCompatActivity {
     static final int STATE_CONNECTION_FAILED=4;
     static final int STATE_MESSAGE_RECEIVED=5;
 
-    int REQUEST_ENABLE_BLUETOOTH=1;
 
     private static final String APP_NAME = "BTChat";
     private static final UUID MY_UUID=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
     private ArrayList<BluetoothDevice> devicesAvailable ;
     private ArrayList<BluetoothDevice> discoveryDevices ;
     private ActivityMainBinding binding ;
+    private final ActivityResultLauncher<Intent> someActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent data = result.getData();
+                }
+            });
 
     @Override
+    @SuppressLint("MissingPermission")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        if (ContextCompat.checkSelfPermission(this, ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions((Activity) this,
-                    new String[]{ACCESS_COARSE_LOCATION},
-                    1);
-        }
+        checkPermissionApp();
 
 
         devicesAvailable = new ArrayList<>();
@@ -78,14 +85,44 @@ public class MainActivity extends AppCompatActivity {
         if(!bluetoothAdapter.isEnabled())
         {
             Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableIntent,REQUEST_ENABLE_BLUETOOTH);
+            someActivityResultLauncher.launch(enableIntent);
         }
+
+
 
         if (bluetoothAdapter.isDiscovering()) {
             bluetoothAdapter.cancelDiscovery();
         }
         bluetoothAdapter.startDiscovery();
         implementListeners();
+    }
+
+    private void checkPermissionApp() {
+        if(Build.VERSION.SDK_INT <= Build.VERSION_CODES.P){
+            if (ContextCompat.checkSelfPermission(this, ACCESS_COARSE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(MainActivity.this,
+                        new String[]{ACCESS_COARSE_LOCATION},
+                        1);
+            }
+        }else {
+            if (ContextCompat.checkSelfPermission(this, ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(MainActivity.this,
+                        new String[]{ACCESS_FINE_LOCATION},
+                        2);
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(this,
+                    ACCESS_BACKGROUND_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                        MainActivity.this,
+                        new String[]{ACCESS_BACKGROUND_LOCATION},
+                        3);
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -371,10 +408,6 @@ public class MainActivity extends AppCompatActivity {
                 if(!discoveryDevices.contains(device)){
                     discoveryDevices.add(device);
                 }
-
-
-                Log.e("TTT", "ACTION_FOUND");
-
             }
         }
     };
