@@ -213,7 +213,6 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case STATE_MESSAGE_RECEIVED:
                     byte[] readBuff= (byte[]) msg.obj;
-//                    String tempMsg=new String(readBuff,0,msg.arg1);
                     ByteArrayInputStream bis = new ByteArrayInputStream(readBuff);
                     ObjectInput in = null;
                     User user;
@@ -257,8 +256,6 @@ public class MainActivity extends AppCompatActivity {
         {
             BluetoothSocket socket=null;
 
-//            while (socket==null)
-//            {
                 try {
                     Message message=Message.obtain();
                     message.what=STATE_CONNECTING;
@@ -283,7 +280,6 @@ public class MainActivity extends AppCompatActivity {
 
 
                 }
-//            }
         }
         public void cancel() {
             try {
@@ -368,15 +364,12 @@ public class MainActivity extends AppCompatActivity {
             byte[] buffer=new byte[1024];
             int bytes;
 
-//            while (true)
-//            {
                 try {
                     bytes=inputStream.read(buffer);
                     handler.obtainMessage(STATE_MESSAGE_RECEIVED,bytes,-1,buffer).sendToTarget();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-//            }
         }
 
         public void write(byte[] bytes)
