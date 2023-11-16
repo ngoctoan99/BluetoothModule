@@ -257,8 +257,8 @@ public class MainActivity extends AppCompatActivity {
         {
             BluetoothSocket socket=null;
 
-            while (socket==null)
-            {
+//            while (socket==null)
+//            {
                 try {
                     Message message=Message.obtain();
                     message.what=STATE_CONNECTING;
@@ -270,10 +270,6 @@ public class MainActivity extends AppCompatActivity {
                     Message message=Message.obtain();
                     message.what=STATE_CONNECTION_FAILED;
                     handler.sendMessage(message);
-                    if(!bluetoothAdapter.isEnabled()){
-                        cancel();
-                        break;
-                    }
                 }
 
                 if(socket!=null)
@@ -285,9 +281,9 @@ public class MainActivity extends AppCompatActivity {
                     sendReceive=new SendReceive(socket);
                     sendReceive.start();
 
-                    break;
+
                 }
-            }
+//            }
         }
         public void cancel() {
             try {
@@ -372,15 +368,15 @@ public class MainActivity extends AppCompatActivity {
             byte[] buffer=new byte[1024];
             int bytes;
 
-            while (true)
-            {
+//            while (true)
+//            {
                 try {
                     bytes=inputStream.read(buffer);
                     handler.obtainMessage(STATE_MESSAGE_RECEIVED,bytes,-1,buffer).sendToTarget();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
+//            }
         }
 
         public void write(byte[] bytes)
